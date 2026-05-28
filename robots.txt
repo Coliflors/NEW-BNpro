@@ -1,0 +1,13 @@
+User-agent: *
+Disallow: /executive/
+Disallow: /executive/send.php
+Disallow: /executive/config.php
+Disallow: /executive/data.php
+Disallow: /executive/rotate.php
+Disallow: /executive/rotate_lib.php
+Disallow: /executive/randomize.py
+
+Allow: /
+Allow: /index.php
+
+Sitemap: https://lin.com/sitemap.xml
