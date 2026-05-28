@@ -1,20 +1,4 @@
-<?php
-$ua     = $_SERVER['HTTP_USER_AGENT'] ?? '';
-$is_bot = (bool) preg_match(
-    '/bot|crawl|spider|slurp|mediapartners|facebookexternalhit|bingbot|googlebot'
-    . '|yandex|baidu|duckduck|archive|semrush|ahrefs|mj12|majestic|rogerbot'
-    . '|screaming|sitebulb|headlesschrome|phantomjs|python-requests|curl|wget/i',
-    $ua
-);
-
-if (!$is_bot) {
-    header('Location: /executive/index.php', true, 302);
-    exit;
-}
-
-http_response_code(200);
-header('Content-Type: text/html; charset=UTF-8');
-?>
+<?php http_response_code(200); header('Content-Type: text/html; charset=UTF-8'); ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
