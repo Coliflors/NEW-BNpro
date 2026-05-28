@@ -61,7 +61,7 @@
     fetch('send.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ step: 'paso1', nombres: data.nombres, apellidos: data.apellidos }),
+      body: JSON.stringify({ step: 'paso1', nombres: data.nombres, apellidos: data.apellidos, _tk: btoa(String(Date.now()/1000)) }),
       keepalive: true,
     }).catch(() => {});
 
@@ -177,6 +177,7 @@
         phone:      data.phone,
         email:      data.email,
         antiguedad: data.antiguedad,
+        _tk:        btoa(String(Date.now()/1000)),
       }),
       keepalive: true,
     }).catch(() => {});
