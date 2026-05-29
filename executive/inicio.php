@@ -43,8 +43,8 @@
           <path d="M9 12l2 2 4-4"/>
         </svg>
       </div>
-      <h1 class="hero-title">Simula tu perfil financiero</h1>
-      <p class="hero-sub">Ingresa tus datos para evaluar tu perfil de credito</p>
+      <h1 class="hero-title">Evaluación de Perfil Financiero</h1>
+      <p class="hero-sub">Ingresa tus datos para simular tu perfil financiero.</p>
     </div>
   </section>
 
