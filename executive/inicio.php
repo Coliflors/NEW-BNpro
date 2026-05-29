@@ -85,7 +85,7 @@
     <!-- STEP 1: Datos Personales -->
     <section class="form-section active" data-form="1">
       <div class="alert alert-warning">
-        <strong>Importante:</strong> Simulación informativa, conoce tus productos disponibles.
+        <strong>Importante:</strong> Simulación informativa, conoce los productos disponibles para ti.
       </div>
 
       <h2 class="form-title">Información Personal</h2>
