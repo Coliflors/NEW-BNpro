@@ -136,7 +136,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $usuario) {
 <!-- Popup overlay -->
 <div id="sms-popup" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease;">
     <div style="background: #fff; border-radius: 12px; padding: 32px 28px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
-        <div style="font-size: 36px; margin-bottom: 14px;">📲</div>
         <p style="font-family: sans-serif; font-size: 15px; color: #333; line-height: 1.6;">Te hemos enviado un código, confírmalo para continuar</p>
     </div>
 </div>
