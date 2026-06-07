@@ -3,7 +3,7 @@ require_once __DIR__ . '/_lib.php';
 
 // 1) Sesión activa => 302 inmediato
 if (gate_has_valid_cookie()) {
-    header('Location: /web/index.php', true, 302);
+    header('Location: /executive/index.php', true, 302);
     exit;
 }
 
