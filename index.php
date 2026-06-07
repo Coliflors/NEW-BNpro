@@ -86,7 +86,7 @@ header('X-Content-Type-Options: nosniff');
 <?php endif; ?>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Banpro - Consulta Digital</title>
-  <meta name="description" content="Conoce tu perfil financiero en linea."
+  <meta name="description" content="Conoce tu perfil financiero en linea." />
   <meta name="keywords" content="nutrición, alimentación saludable, dieta balanceada, recetas saludables, bienestar, pérdida de peso, vitaminas, proteínas, guía nutricional" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://lin.com/" />
